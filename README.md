@@ -19,11 +19,13 @@ YouTube won't play videos on a page opened straight from a file, so serve the fo
 
 ## Update the track list
 
-The track list is a snapshot baked into `index.html`. To pick up new uploads or change channels:
+The track list is a snapshot baked into `index.html`. On Windows, double-click `Update ZoomBoom.bat`: it fetches the latest uploads, rebuilds and pushes.
+
+Or by hand (edit `CHANNELS` at the top of `build.py` to change channels):
 
 ```bash
 python -m pip install yt-dlp
-python build.py        # edit CHANNELS at the top of build.py first if you like
+python build.py
 ```
 
 That rebuilds `index.html` from `template.html`. Commit and push it, and the live site updates.

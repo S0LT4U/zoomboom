@@ -156,8 +156,10 @@
   .empty { padding: 40px 20px; text-align: center; color: var(--dim); }
 
   /* ---- hide-UI (zen) mode ---- */
-  body.zen header, body.zen aside, body.zen main > :not(.frame) { display: none; }
-  body.zen main { padding: 0; background: none; overflow: visible; }
+  /* Hidden with opacity/visibility rather than display:none so the 5,000-row list keeps its layout and comes back instantly */
+  header, aside, main > :not(.frame) { transition: opacity .25s; }
+  body.zen header, body.zen aside, body.zen main > :not(.frame) { opacity: 0; visibility: hidden; pointer-events: none; }
+  body.zen main { background: none; overflow: visible; }
   body.zen .frame { position: fixed; right: 20px; bottom: 20px; width: 272px; max-height: none; z-index: 2; border-radius: 12px;
     box-shadow: 0 16px 50px -10px #000, 0 0 0 1px var(--line2); }
   .zen-bar { display: none; position: fixed; left: 20px; bottom: 20px; z-index: 2; width: min(540px, calc(100vw - 332px));
@@ -196,7 +198,7 @@
     .vol input { display: none; }
     .chips .scene-name { display: none; }
     aside { border-left: 0; border-top: 1px solid var(--line); height: 62vh; }
-    .count, #full { display: none; }
+    .count { display: none; }
     body.zen .frame { width: 176px; right: 12px; bottom: 12px; }
     .zen-bar { width: calc(100vw - 24px); left: 12px; bottom: 124px; }
   }
@@ -239,7 +241,6 @@
     <button class="ib" id="zNext" title="Next (N)"><svg class="i"><use href="#i-next"/></svg></button>
     <span class="sp"></span>
     <button class="ib" id="zScene" title="Next visual (V)"><svg class="i"><use href="#i-spark"/></svg></button>
-    <button class="ib" id="zFull" title="Fullscreen (F)"><svg class="i"><use href="#i-full"/></svg></button>
     <button class="ib" id="zExit" title="Show the interface (H or Esc)"><svg class="i"><use href="#i-exit"/></svg></button>
   </div>
 </div>
@@ -281,7 +282,6 @@
   <span class="spacer"></span>
   <span class="count" id="count"></span>
   <button class="ib" id="zen" title="Hide the interface, just the visuals (H)"><svg class="i"><use href="#i-eye"/></svg></button>
-  <button class="ib" id="full" title="Fullscreen (F)"><svg class="i"><use href="#i-full"/></svg></button>
 </header>
 
 <main>
@@ -612,7 +612,6 @@ function toggleFull() {
 ['mousemove', 'mousedown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, poke, { passive: true }));
 $('#zen').onclick = () => toggleZen();
 $('#zExit').onclick = () => toggleZen(false);
-$('#full').onclick = $('#zFull').onclick = toggleFull;
 $('#scene').onclick = $('#zScene').onclick = () => Viz.next();
 $('#zPrev').onclick = () => $('#prev').click();
 $('#zNext').onclick = () => $('#next').click();

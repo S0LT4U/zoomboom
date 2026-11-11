@@ -71,13 +71,16 @@
   main { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 16px; overflow: auto; min-width: 0;
     background: linear-gradient(rgba(10, 9, 16, .15), rgba(10, 9, 16, .55)); }
   .frame { position: relative; width: 100%; aspect-ratio: 16/9; max-height: calc(100vh - 300px); margin: 0 auto; flex: none;
-    background: #000; border-radius: 16px; overflow: hidden; transition: opacity .4s;
-    box-shadow: 0 0 0 1px var(--line2), 0 30px 80px -30px rgba(0, 0, 0, .9),
-      0 0 calc(24px + var(--bass) * 60px) rgba(255, 61, 127, calc(.12 + var(--bass) * .4)); }
-  .frame > * { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .frame::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(110deg, #120e1c 30%, #1e1530 50%, #120e1c 70%) 0 0 / 200% 100%;
+    background: #000; border-radius: 16px; transition: opacity .4s;
+    box-shadow: 0 0 0 1px var(--line2), 0 30px 80px -30px rgba(0, 0, 0, .9); }
+  .frame > * { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; overflow: hidden; }
+  /* Bass glow: a pre-blurred layer behind the video; only its opacity and scale change per beat (no repaint) */
+  .frame::after { content: ''; position: absolute; inset: -14px; z-index: -1; border-radius: 28px; pointer-events: none;
+    background: linear-gradient(120deg, var(--a3), var(--a2) 50%, var(--a5)); filter: blur(28px);
+    opacity: calc(.18 + var(--bass, 0) * .55); transform: scale(calc(.97 + var(--bass, 0) * .05)); will-change: opacity, transform; }
+  .frame::before { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; background: linear-gradient(110deg, #120e1c 30%, #1e1530 50%, #120e1c 70%) 0 0 / 200% 100%;
     animation: shimmer 1.6s linear infinite; pointer-events: none; transition: opacity .5s; }
-  body.ready .frame::before { opacity: 0; }
+  body.ready .frame::before { opacity: 0; animation: none; }
   @keyframes shimmer { to { background-position: -200% 0; } }
 
   .deck { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 10px; flex: none; }
@@ -102,7 +105,7 @@
   .transport .r { justify-content: flex-end; }
   .transport .c { display: flex; align-items: center; gap: 12px; }
   .play { width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--grad); color: #fff; display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: 0 10px 30px -8px rgba(255, 61, 127, .8), 0 0 0 0 rgba(255, 61, 127, .4); transform: scale(calc(1 + var(--beat) * .07)); transition: box-shadow .2s; }
+    box-shadow: 0 10px 30px -8px rgba(255, 61, 127, .8), 0 0 0 0 rgba(255, 61, 127, .4); transform: scale(calc(1 + var(--beat, 0) * .07)); transition: box-shadow .2s; will-change: transform; }
   .play:hover { box-shadow: 0 12px 34px -6px rgba(255, 61, 127, .9), 0 0 0 6px rgba(255, 61, 127, .15); }
   .play svg { width: 24px; height: 24px; }
   .play .i-pause { display: none; } body.playing .play .i-play { display: none; } body.playing .play .i-pause { display: block; }
@@ -135,8 +138,10 @@
   .field input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--text); }
   .field select { background: none; border: 0; outline: none; color: var(--text); max-width: 150px; cursor: pointer; }
   .field select option { background: var(--panel2); }
-  ol { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; overscroll-behavior: contain; }
-  li { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 10px; cursor: pointer; transition: background .12s; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; contain: strict; }
+  .list ol { position: relative; list-style: none; margin: 0; padding: 0; }
+  li { position: absolute; left: 0; right: 0; top: 0; height: 46px; display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    padding: 6px 8px; border-radius: 10px; cursor: pointer; transition: background .12s; contain: layout paint; }
   li:hover { background: rgba(255, 255, 255, .05); }
   li .th { position: relative; width: 60px; height: 34px; border-radius: 6px; overflow: hidden; background: #1a1526; }
   li .th img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .85; }
@@ -182,7 +187,7 @@
   .zen-card .t { font-size: clamp(22px, 3.4vw, 40px); font-weight: 700; letter-spacing: -.5px; text-shadow: 0 2px 30px #000, 0 0 60px rgba(255, 61, 127, .35); }
   body.zen.idle .zen-bar, body.zen.idle .frame { opacity: 0; }
   body.zen.idle { cursor: none; }
-  .toast { position: fixed; top: 18px; left: 50%; transform: translate(-50%, -8px); z-index: 6; background: rgba(12, 10, 19, .8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  .toast { position: fixed; top: 18px; left: 50%; transform: translate(-50%, -8px); z-index: 6; background: rgba(12, 10, 19, .92);
     border: 1px solid var(--line2); border-left: 3px solid var(--a2); border-radius: 12px; padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .3s;
     pointer-events: none; max-width: calc(100vw - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -345,7 +350,7 @@
     <label class="field"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="Search tracks…"></label>
     <label class="field"><select id="chan"><option value="">All channels</option></select></label>
   </div>
-  <ol id="list"></ol>
+  <div class="list" id="list"><ol id="rows"></ol><div class="empty" id="empty" hidden>No tracks match.</div></div>
 </aside>
 
 <script>
@@ -462,40 +467,66 @@ $('#bar').onclick = e => {
   tick();
 };
 
-// ---- playlist -------------------------------------------------------------
-const rows = new Map();                                        // track index -> <li>, rebuilt when filter/order changes
+// ---- playlist (virtual: only the rows in view exist in the page) ----------
+// With 5,000+ tracks, rendering every row put ~68,000 elements on the page and made
+// every style change crawl. Now ~25 rows exist at a time and are recycled on scroll.
+const ROW = 48, OVERSCAN = 6;
+let view = [];                                                 // positions in `order` that pass the filter
+const shown = new Map();                                       // position -> <li> currently on screen
+const scroller = $('#list'), rowsEl = $('#rows');
+function makeRow(p) {
+  const v = all[order[p]], li = document.createElement('li');
+  li.style.setProperty('--c', ccol(v.ci));
+  li.innerHTML = '<div class="th"><img decoding="async" alt=""><div class="eqv"><i></i><i></i><i></i></div></div>' +
+    '<div><div class="tt"></div><div class="cc"><b></b></div></div><span class="d"></span>';
+  li.querySelector('img').src = thumb(v.id);
+  li.querySelector('.tt').textContent = v.title;
+  li.querySelector('.cc b').textContent = v.channel;
+  li.querySelector('.d').textContent = v.duration ? fmt(v.duration) : '';
+  li.dataset.p = p;
+  return li;
+}
+function drawRows() {
+  const top = scroller.scrollTop, h = scroller.clientHeight || 600;
+  const a = Math.max(0, Math.floor(top / ROW) - OVERSCAN), b = Math.min(view.length, Math.ceil((top + h) / ROW) + OVERSCAN);
+  const want = new Set();
+  for (let i = a; i < b; i++) {
+    const p = view[i]; want.add(p);
+    let li = shown.get(p);
+    if (!li) { li = makeRow(p); shown.set(p, li); rowsEl.appendChild(li); }
+    li.style.transform = `translateY(${i * ROW}px)`;
+    li.classList.toggle('cur', p === pos);
+  }
+  for (const [p, li] of shown) if (!want.has(p)) { li.remove(); shown.delete(p); }
+}
 function renderList() {
   const q = $('#q').value.toLowerCase(), ch = $('#chan').value;
-  const ol = $('#list'); ol.textContent = ''; rows.clear();
-  const frag = document.createDocumentFragment();
-  let n = 0;
-  order.forEach((idx, p) => {
-    const v = all[idx];
-    if (ch && v.channel !== ch) return;
-    if (q && !v.title.toLowerCase().includes(q)) return;
-    n++;
-    const li = document.createElement('li');
-    li.style.setProperty('--c', ccol(v.ci));
-    li.innerHTML = '<div class="th"><img loading="lazy" decoding="async" alt=""><div class="eqv"><i></i><i></i><i></i></div></div>' +
-      '<div><div class="tt"></div><div class="cc"><b></b></div></div><span class="d"></span>';
-    li.querySelector('img').src = thumb(v.id);
-    li.querySelector('.tt').textContent = v.title;
-    li.querySelector('.cc b').textContent = v.channel;
-    li.querySelector('.d').textContent = v.duration ? fmt(v.duration) : '';
-    li.onclick = () => playAt(p);
-    rows.set(idx, li);
-    frag.appendChild(li);
-  });
-  if (!n) { const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No tracks match.'; frag.appendChild(e); }
-  ol.appendChild(frag);
+  view = [];
+  for (let p = 0; p < order.length; p++) {
+    const v = all[order[p]];
+    if (ch && v.channel !== ch) continue;
+    if (q && !v.title.toLowerCase().includes(q)) continue;
+    view.push(p);
+  }
+  for (const li of shown.values()) li.remove();
+  shown.clear();
+  rowsEl.style.height = view.length * ROW + 'px';
+  $('#empty').hidden = view.length > 0;
   markCurrent();
 }
-let curRow;
 function markCurrent() {
-  curRow?.classList.remove('cur');
-  curRow = rows.get(order[pos]);
-  if (curRow) { curRow.classList.add('cur'); curRow.scrollIntoView({ block: 'nearest' }); }
+  const i = view.indexOf(pos);
+  if (i >= 0) {                                                // keep the playing row in view
+    const y = i * ROW, top = scroller.scrollTop, h = scroller.clientHeight;
+    if (y < top) scroller.scrollTop = y;
+    else if (y + ROW > top + h) scroller.scrollTop = y + ROW - h;
+  }
+  drawRows();
 }
+let rowRaf = 0;
+scroller.addEventListener('scroll', () => { if (!rowRaf) rowRaf = requestAnimationFrame(() => { rowRaf = 0; drawRows(); }); }, { passive: true });
+rowsEl.addEventListener('click', e => { const li = e.target.closest('li'); if (li) playAt(+li.dataset.p); });
+addEventListener('resize', drawRows);
 
 function syncButtons() {
   $('#shuffle').classList.toggle('on', shuffle);
@@ -873,7 +904,10 @@ const Viz = (() => {
   let si = store.get('scene', 0) % scenes.length, switchAt = AUTO_EVERY, trans = 0, pending = -1;
   const nameEl = $('#sceneName'); nameEl.textContent = scenes[si].name;
   function next(to = (si + 1) % scenes.length) { pending = to; trans = 1; }
-  const root = document.documentElement.style;
+  // Beat values go only on the two elements that use them, never on the page root
+  // (a root-level CSS variable change makes the browser re-check every element on the page).
+  const frameStyle = $('.frame').style, playStyle = $('#play').style;
+  let lastBass = -1, lastBeat = -1;
   let last = performance.now(), t0 = last, n = 0;
   function frame(now) {
     requestAnimationFrame(frame);
@@ -889,7 +923,11 @@ const Viz = (() => {
       if (pending >= 0 && trans < 0.5) { si = pending; pending = -1; store.set('scene', si); fade(1); nameEl.textContent = scenes[si].name; toast('Visual: ' + scenes[si].name, 1200); }
       fade(trans > 0.5 ? (1 - trans) * 2 : trans * 2);
     }
-    if (++n % 2 === 0) { root.setProperty('--bass', a.bass.toFixed(3)); root.setProperty('--beat', a.beat.toFixed(3)); }
+    if (++n % 2 === 0) {
+      const bass = Math.round(a.bass * 50) / 50, beat = Math.round(a.beat * 20) / 20;   // skip invisible changes
+      if (bass !== lastBass) { lastBass = bass; frameStyle.setProperty('--bass', bass); }
+      if (beat !== lastBeat) { lastBeat = beat; playStyle.setProperty('--beat', beat); }
+    }
   }
   requestAnimationFrame(frame);
   return { next };

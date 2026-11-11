@@ -10,7 +10,17 @@ One endless, shuffled YouTube radio built from five music channels:
 **▶ Listen: https://s0lt4u.github.io/zoomboom/**
 
 No ads if you're signed in to YouTube Premium in the same browser.
-Keys: Space play/pause · N next · P prev.
+Keys: Space play/pause · N next · P prev · H hide the UI · F fullscreen · V next visual.
+
+## Visuals
+
+The whole page sits on a live visualizer (five hand-made scenes that cycle every 90 s).
+**Hide UI** leaves just the visuals, a small now-playing bar and a mini video.
+
+By default the visuals move to a simulated beat. For visuals that follow the real music,
+pick **Visuals: listen to this tab** (Chrome/Edge): the browser asks you to share this tab;
+tick *Share tab audio*. Nothing leaves your computer. Firefox/Safari can use the microphone
+option instead.
 
 ## Run it locally
 

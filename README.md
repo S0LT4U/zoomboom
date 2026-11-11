@@ -1,9 +1,11 @@
 # ZoomBoom
 
-One endless, shuffled YouTube radio built from three music channels:
+One endless, shuffled YouTube radio built from five music channels:
 [lostmemory.mp3](https://www.youtube.com/@lostmemory.mp3),
-[Noumena](https://www.youtube.com/channel/UCkQTBxYmJRcDz1LVmh92HOA) and
-[This Never Happened](https://www.youtube.com/@thisneverhappened).
+[Noumena](https://www.youtube.com/channel/UCkQTBxYmJRcDz1LVmh92HOA),
+[This Never Happened](https://www.youtube.com/@thisneverhappened),
+[Anjunadeep](https://www.youtube.com/@Anjunadeep) and
+[arcologies](https://www.youtube.com/@Arcologies).
 
 **▶ Listen: https://s0lt4u.github.io/zoomboom/**
 

@@ -10,6 +10,8 @@ CHANNELS = [
     "https://www.youtube.com/@lostmemory.mp3",
     "https://www.youtube.com/channel/UCkQTBxYmJRcDz1LVmh92HOA",  # Noumena
     "https://www.youtube.com/@thisneverhappened",
+    "https://www.youtube.com/@Anjunadeep",
+    "https://www.youtube.com/@Arcologies",
 ]
 # --------------------------------------------------------------------------
 

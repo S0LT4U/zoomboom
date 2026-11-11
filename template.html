@@ -51,8 +51,10 @@
   input[type=range] { accent-color: var(--a2); width: 120px; }
   aside { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: rgba(15, 13, 23, .88); }
   .search { padding: 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; }
-  input[type=text], input:not([type]), select { background: rgba(10, 9, 16, .8); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 10px; font: inherit; }
+  input[type=text], input[type=number], input:not([type]), select { background: rgba(10, 9, 16, .8); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
+  #surfMin { width: 62px; padding: 7px 6px; text-align: center; }
+  .controls .hint { margin-left: -4px; }
   /* Hide-UI ("zen") mode: only the visuals, a small now-playing bar and a mini video */
   body.zen header, body.zen aside, body.zen main > :not(.frame) { display: none; }
   body.zen main { padding: 0; background: none; }
@@ -157,13 +159,8 @@
     <button id="next">Next ⏭</button>
     <button id="shuffle" title="Random order">🔀 Shuffle</button>
     <button id="even" title="Take turns between channels so the biggest one doesn't dominate">⚖ Even mix</button>
-    <select id="surf" title="Surf: drop into each track at a random point and move on after a few minutes">
-      <option value="0">Surf: off (full tracks)</option>
-      <option value="180">Surf: 3 min clips</option>
-      <option value="300">Surf: 5 min clips</option>
-      <option value="600">Surf: 10 min clips</option>
-      <option value="900">Surf: 15 min clips</option>
-    </select>
+    <button id="surfBtn" title="Surf: drop into each track at a random point and move on after the minutes set here">🏄 Surf</button>
+    <input type="number" id="surfMin" min="1" max="120" step="1" value="5" title="Minutes per track while surfing"><span class="hint">min</span>
     <button id="loop">🔁 Loop all</button>
     <span class="hint">Vol</span><input type="range" id="vol" min="0" max="100" value="60">
   </div>
@@ -254,7 +251,8 @@ function playAt(p) {
 }
 
 // ---- Surf: fade out, jump to the next track, fade back in ----------------
-let surf = +store.get('surf', 0), clipEnd = Infinity, fading = false, fadeInPending = false;
+let surfOn = store.get('surfOn', false), surfMin = Math.min(120, Math.max(1, +store.get('surfMin', 5) || 5));
+let surf = surfOn ? surfMin * 60 : 0, clipEnd = Infinity, fading = false, fadeInPending = false;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function fadeTo(target, ms) {
   const from = player.getVolume(), steps = Math.max(1, ms / 50 | 0);
@@ -342,13 +340,20 @@ window.onYouTubeIframeAPIReady = () => {
 
 $('#vol').value = store.get('vol', 60);
 $('#vol').oninput = e => { store.set('vol', +e.target.value); ready && !fading && player.setVolume(+e.target.value); };
-$('#surf').value = surf;
-$('#surf').onchange = e => {
-  surf = +e.target.value; store.set('surf', surf);
-  toast(surf ? `Surfing: ${surf / 60} minutes per track, starting at random points` : 'Surf off: full tracks');
-  if (surf && ready) { clipEnd = player.getCurrentTime() + surf; }
-  if (!surf) { clipEnd = Infinity; $('#nowChan').textContent = $('#zenChan').textContent = cur().channel; }
+$('#surfMin').value = surfMin;
+function applySurf(announce) {
+  surf = surfOn ? surfMin * 60 : 0;
+  $('#surfBtn').classList.toggle('on', surfOn);
+  if (surf && ready) clipEnd = Math.min(clipEnd, player.getCurrentTime() + surf);
+  if (!surf) { clipEnd = Infinity; if (cur()) $('#nowChan').textContent = $('#zenChan').textContent = cur().channel; }
+  if (announce) toast(surf ? `Surfing: ${surfMin} min per track, starting at random points` : 'Surf off: full tracks');
+}
+$('#surfBtn').onclick = () => { surfOn = !surfOn; store.set('surfOn', surfOn); clipEnd = Infinity; applySurf(true); };
+$('#surfMin').onchange = e => {
+  surfMin = Math.min(120, Math.max(1, Math.round(+e.target.value) || 5)); e.target.value = surfMin; store.set('surfMin', surfMin);
+  clipEnd = Infinity; applySurf(surfOn);
 };
+applySurf(false);
 $('#next').onclick = () => playAt(pos + 1);
 $('#prev').onclick = () => playAt(pos - 1);
 $('#play').onclick = () => { if (!ready) return; player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); };

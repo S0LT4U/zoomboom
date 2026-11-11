@@ -157,6 +157,13 @@
     <button id="next">Next ⏭</button>
     <button id="shuffle" title="Random order">🔀 Shuffle</button>
     <button id="even" title="Take turns between channels so the biggest one doesn't dominate">⚖ Even mix</button>
+    <select id="surf" title="Surf: drop into each track at a random point and move on after a few minutes">
+      <option value="0">Surf: off (full tracks)</option>
+      <option value="180">Surf: 3 min clips</option>
+      <option value="300">Surf: 5 min clips</option>
+      <option value="600">Surf: 10 min clips</option>
+      <option value="900">Surf: 15 min clips</option>
+    </select>
     <button id="loop">🔁 Loop all</button>
     <span class="hint">Vol</span><input type="range" id="vol" min="0" max="100" value="60">
   </div>
@@ -172,6 +179,7 @@
   </div>
   <div class="hint">No ads with YouTube Premium: just be signed in to YouTube in this browser.
     For visuals that react to the real music, pick "listen to this tab" and share this tab with audio.
+    Surf drops into long mixes at a random point and moves on after a few minutes, like flipping stations.
     Keys: Space play/pause · N next · P prev · H hide UI · F fullscreen · V next visual.</div>
 </main>
 <aside>
@@ -231,11 +239,38 @@ function playAt(p) {
   const v = cur();
   store.set('last', v.id);
   $('#nowTitle').textContent = $('#zenTitle').textContent = v.title;
-  $('#nowChan').textContent = $('#zenChan').textContent = v.channel;
   document.title = v.title + ' · ZoomBoom';
-  if (ready) player.loadVideoById(v.id);
+  // Surf mode: start somewhere in the middle of long tracks and move on after `surf` seconds
+  let start = 0; clipEnd = Infinity;
+  if (surf && v.duration > surf * 1.6) {
+    start = Math.floor(v.duration * 0.04 + Math.random() * (v.duration - surf - v.duration * 0.08));
+    clipEnd = start + surf;
+  } else if (surf && v.duration) {
+    clipEnd = Math.min(v.duration, surf * 1.6);                 // short track: play it whole
+  }
+  $('#nowChan').textContent = $('#zenChan').textContent = v.channel + (start ? ' · from ' + fmt(start) : '');
+  if (ready) player.loadVideoById({ videoId: v.id, startSeconds: start });
   renderList();
 }
+
+// ---- Surf: fade out, jump to the next track, fade back in ----------------
+let surf = +store.get('surf', 0), clipEnd = Infinity, fading = false, fadeInPending = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function fadeTo(target, ms) {
+  const from = player.getVolume(), steps = Math.max(1, ms / 50 | 0);
+  for (let i = 1; i <= steps; i++) { player.setVolume(from + (target - from) * i / steps); await sleep(50); }
+}
+async function surfNext() {
+  if (fading) return; fading = true;
+  await fadeTo(0, 1800);
+  fadeInPending = true;
+  playAt(pos + 1);
+  fading = false;
+}
+setInterval(() => {
+  if (!surf || !ready || fading || player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+  if (player.getCurrentTime() >= clipEnd) surfNext();
+}, 500);
 
 function fmt(s) { if (!s) return ''; s = Math.round(s); const h = s / 3600 | 0, m = (s % 3600) / 60 | 0, x = s % 60;
   return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); }
@@ -288,7 +323,10 @@ window.onYouTubeIframeAPIReady = () => {
       onStateChange: e => {
         document.body.classList.toggle('playing', e.data === YT.PlayerState.PLAYING);
         if (e.data === YT.PlayerState.ENDED) playAt(pos + 1);
-        if (e.data === YT.PlayerState.PLAYING) errStreak = 0;
+        if (e.data === YT.PlayerState.PLAYING) {
+          errStreak = 0;
+          if (fadeInPending) { fadeInPending = false; fadeTo(+$('#vol').value, 1500); }
+        }
       },
       // Removed or embed-blocked video: skip it
       onError: e => {
@@ -303,7 +341,14 @@ window.onYouTubeIframeAPIReady = () => {
 };
 
 $('#vol').value = store.get('vol', 60);
-$('#vol').oninput = e => { store.set('vol', +e.target.value); ready && player.setVolume(+e.target.value); };
+$('#vol').oninput = e => { store.set('vol', +e.target.value); ready && !fading && player.setVolume(+e.target.value); };
+$('#surf').value = surf;
+$('#surf').onchange = e => {
+  surf = +e.target.value; store.set('surf', surf);
+  toast(surf ? `Surfing: ${surf / 60} minutes per track, starting at random points` : 'Surf off: full tracks');
+  if (surf && ready) { clipEnd = player.getCurrentTime() + surf; }
+  if (!surf) { clipEnd = Infinity; $('#nowChan').textContent = $('#zenChan').textContent = cur().channel; }
+};
 $('#next').onclick = () => playAt(pos + 1);
 $('#prev').onclick = () => playAt(pos - 1);
 $('#play').onclick = () => { if (!ready) return; player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); };

@@ -94,10 +94,6 @@
     background: #000; border-radius: 16px; transition: opacity .4s;
     box-shadow: 0 0 0 1px var(--line2), 0 30px 80px -30px rgba(0, 0, 0, .9); }
   .frame > * { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; overflow: hidden; }
-  /* Bass glow: a pre-blurred layer behind the video; only its opacity and scale change per beat (no repaint) */
-  .frame::after { content: ''; position: absolute; inset: -14px; z-index: -1; border-radius: 28px; pointer-events: none;
-    background: linear-gradient(120deg, var(--a3), var(--a2) 50%, var(--a5)); filter: blur(28px);
-    opacity: calc(.18 + var(--bass, 0) * .55); transform: scale(calc(.97 + var(--bass, 0) * .05)); will-change: opacity, transform; }
   .frame::before { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; background: linear-gradient(110deg, #120e1c 30%, #1e1530 50%, #120e1c 70%) 0 0 / 200% 100%;
     animation: shimmer 1.6s linear infinite; pointer-events: none; transition: opacity .5s; }
   body.ready .frame::before { opacity: 0; animation: none; }
@@ -1004,10 +1000,10 @@ const Viz = (() => {
   let si = store.get('scene', 0) % scenes.length, switchAt = AUTO_EVERY, trans = 0, pending = -1;
   const nameEl = $('#sceneName'); nameEl.textContent = scenes[si].name;
   function next(to = (si + 1) % scenes.length) { pending = to; trans = 1; }
-  // Beat values go only on the two elements that use them, never on the page root
+  // The beat value goes only on the play button, never on the page root
   // (a root-level CSS variable change makes the browser re-check every element on the page).
-  const frameStyle = $('.frame').style, playStyle = $('#play').style;
-  let lastBass = -1, lastBeat = -1;
+  const playStyle = $('#play').style;
+  let lastBeat = -1;
   let last = performance.now(), t0 = last, n = 0;
   function frame(now) {
     requestAnimationFrame(frame);
@@ -1024,8 +1020,7 @@ const Viz = (() => {
       fade(trans > 0.5 ? (1 - trans) * 2 : trans * 2);
     }
     if (++n % 2 === 0) {
-      const bass = Math.round(a.bass * 50) / 50, beat = Math.round(a.beat * 20) / 20;   // skip invisible changes
-      if (bass !== lastBass) { lastBass = bass; frameStyle.setProperty('--bass', bass); }
+      const beat = Math.round(a.beat * 20) / 20;                // skip invisible changes
       if (beat !== lastBeat) { lastBeat = beat; playStyle.setProperty('--beat', beat); }
     }
   }

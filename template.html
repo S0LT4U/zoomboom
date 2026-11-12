@@ -216,6 +216,27 @@
     border: 1px solid var(--line2); border-left: 3px solid var(--a2); border-radius: 12px; padding: 8px 14px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .3s;
     pointer-events: none; max-width: calc(100vw - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .opt .pl { width: 8px; flex: none; text-align: center; font-weight: 700; color: var(--a2); line-height: 1; }
+  .opt .rm { margin-left: auto; height: 20px; min-width: 20px; padding: 0 5px; border-radius: 6px; border: 0; background: none; color: var(--dim); font-size: 14px; line-height: 1; opacity: 0; }
+  .opt .rm + .oc { margin-left: 0; padding-left: 6px; }
+  .opt.hi .rm { opacity: 1; } .opt .rm:hover { color: #fff; background: rgba(255, 45, 85, .3); }
+  .opt .rm.sure { opacity: 1; font-size: 11.5px; color: #fff; background: rgba(255, 45, 85, .55); }
+  .dlg { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 22px; border-radius: 18px; background: rgba(21, 17, 31, .98); border: 1px solid var(--line2); color: var(--text); box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+  .dlg::backdrop { background: rgba(6, 4, 12, .62); }
+  .dlg h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -.2px; }
+  .dlg p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+  .dlg .field { margin-bottom: 10px; }
+  .dlg .how { font-size: 12.5px; color: var(--muted); margin: 0 2px 10px; }
+  .dlg .how summary { cursor: pointer; color: var(--text); }
+  .dlg .steps { margin-top: 8px; display: grid; gap: 6px; counter-reset: st; }
+  .dlg .steps > div { counter-increment: st; padding-left: 20px; position: relative; }
+  .dlg .steps > div::before { content: counter(st) '.'; position: absolute; left: 0; color: var(--dim); }
+  .dlg .how b { color: var(--text); font-weight: 600; } .dlg a { color: var(--a2); }
+  .dlg code { background: rgba(255, 255, 255, .08); padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+  .dlg .dmsg { min-height: 20px; font-size: 13px; color: var(--muted); margin-bottom: 10px; } .dlg .dmsg.bad { color: #ff7a8f; }
+  .dlg .drow { display: flex; align-items: center; gap: 8px; } .dlg .drow .sp { flex: 1; }
+  .dlg .lnk { background: none; border: 0; padding: 0; color: var(--dim); font-size: 12.5px; text-decoration: underline; } .dlg .lnk:hover { color: var(--text); }
+  .toast { z-index: 40; }
 
   @media (max-width: 900px) {
     body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; height: auto; overflow: auto; }
@@ -279,6 +300,32 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<dialog class="dlg" id="addDlg">
+  <form id="addForm">
+    <h3>Add a channel</h3>
+    <p>Paste a YouTube channel link, or any video or playlist from it. Every upload joins your rotation and new ones are picked up automatically. Saved in this browser only.</p>
+    <label class="field"><input id="addUrl" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false"></label>
+    <div id="keyBox">
+      <label class="field"><input id="addKey" placeholder="YouTube API key (asked once)" autocomplete="off" spellcheck="false"></label>
+      <details class="how"><summary>How to get a key (free, about 5 minutes)</summary>
+        <div class="steps">
+          <div>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a>, sign in and create a project (any name).</div>
+          <div>Search for <b>YouTube Data API v3</b> at the top and click <b>Enable</b>.</div>
+          <div>Go to <b>APIs &amp; Services → Credentials → Create credentials → API key</b>.</div>
+          <div>Optional but wise: restrict the key to <b>YouTube Data API v3</b> and to the website <code id="addHost"></code>.</div>
+          <div>Copy the key and paste it above. It stays in this browser.</div>
+        </div>
+      </details>
+    </div>
+    <div class="dmsg" id="addMsg"></div>
+    <div class="drow">
+      <button type="button" class="lnk" id="keyChange" hidden>Change API key</button>
+      <span class="sp"></span>
+      <button type="button" class="chip" id="addCancel">Close</button>
+      <button type="submit" class="chip on" id="addGo">Add channel</button>
+    </div>
+  </form>
+</dialog>
 
 <header>
   <div class="logo" aria-label="ZoomBoom">
@@ -404,7 +451,25 @@ const [CHANNELS, UPDATED, ROWS] = DATA;
 const CCOL = ['#ff3d7f', '#7b5cff', '#ff7a1a', '#3d8bff', '#c04cff', '#ffb020', '#ff2d55'];
 const ccol = ci => CCOL[ci % CCOL.length];
 const thumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
-const all = ROWS.map(([id, title, c, duration]) => ({ id, title, lc: title.toLowerCase(), ci: c, channel: CHANNELS[c], duration }));
+// Channels added in this browser ("Add a channel" in the station menu) are kept in localStorage
+// and sit after the built-in ones: custom[i] is channel BAKED + i.
+const BAKED = CHANNELS.length, custom = [];
+const chanKey = k => 'zoomboom:chan:' + k;
+const readChan = k => { try { const c = JSON.parse(localStorage.getItem(chanKey(k))); return c && Array.isArray(c.rows) ? c : null; } catch { return null; } };
+const all = [], byId = new Set();
+function addTrack(id, title, c, duration) {
+  if (byId.has(id)) return 0;
+  byId.add(id); all.push({ id, title, lc: title.toLowerCase(), ci: c, channel: CHANNELS[c], duration });
+  return 1;
+}
+for (const r of ROWS) addTrack(...r);
+for (const k of store.get('chans', [])) {
+  const c = readChan(k);
+  if (!c || CHANNELS.includes(c.name)) continue;
+  custom.push({ key: k, name: c.name, at: c.at || 0 });
+  CHANNELS.push(c.name);
+  for (const [id, title, d] of c.rows) addTrack(id, title, CHANNELS.length - 1, d);
+}
 let order = [], pos = 0, player, ready = false, errStreak = 0;
 let shuffle = store.get('shuffle', true), even = store.get('even', true), loop = store.get('loop', true);
 // Station = which channels are in the rotation (empty set = all), optionally favorites only
@@ -677,7 +742,8 @@ function syncButtons() {
 function warn(html) { const w = $('#warn'); w.innerHTML = html; w.style.display = 'block'; }
 
 // Header count
-$('#count').textContent = `${all.length.toLocaleString()} tracks · ${CHANNELS.length} channels · ${new Date(UPDATED * 1000).toLocaleDateString()}`;
+function updateCount() { $('#count').textContent = `${all.length.toLocaleString()} tracks · ${CHANNELS.length} channels · ${new Date(UPDATED * 1000).toLocaleDateString()}`; }
+updateCount();
 
 // YouTube IFrame API
 const tag = document.createElement('script');
@@ -751,7 +817,7 @@ $('#ytLink').onclick = e => {                                  // open the curre
 if ('documentPictureInPicture' in window) { $('#mini').hidden = false; $('#mini').onclick = toggleMini; }
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;              // leave browser shortcuts (Ctrl+F, Ctrl+N...) alone
-  if (e.target.matches?.('input, select')) return;
+  if (e.target.matches?.('input, select') || e.target.closest?.('dialog')) return;
   if (e.code === 'Space') { e.preventDefault(); $('#play').click(); }
   if (e.key === 'n') $('#next').click();
   if (e.key === 'p') $('#prev').click();
@@ -883,7 +949,6 @@ document.addEventListener('scroll', e => { if (!e.target.closest?.('.menu')) clo
 const audioDD = dropdown($('#audioDD'));
 
 // ---- station menu: tick any mix of channels, and/or favorites only ---------
-const chanCounts = CHANNELS.map((_, c) => all.filter(v => v.ci === c).length);
 const stationDD = (() => {
   const wrap = $('#chanDD'), label = wrap.querySelector('.dd-label');
   let menu = null, hi = 0;
@@ -900,18 +965,24 @@ const stationDD = (() => {
     if (!kept) playAt(0);                                       // the playing track isn't in the new station: switch now
     sync(); paint();
   }
-  const items = () => [
+  const items = () => {
+    const chanCounts = CHANNELS.map(() => 0);
+    for (const v of all) chanCounts[v.ci]++;
+    return [
     { text: 'All channels', count: all.length, on: () => !stations.size, pick() { const old = [...stations]; stations.clear(); apply(() => old.forEach(c => stations.add(c))); } },
-    ...CHANNELS.map((name, c) => ({ text: name, color: ccol(c), count: chanCounts[c], on: () => stations.has(c),
+    ...CHANNELS.map((name, c) => ({ text: name, color: ccol(c), count: chanCounts[c], on: () => stations.has(c), remove: c >= BAKED ? () => removeChannel(c) : null,
       pick() { const had = stations.has(c); had ? stations.delete(c) : stations.add(c); if (stations.size === CHANNELS.length) stations.clear();
-        apply(() => { stations.clear(); store.get('stations', []).forEach(n => stations.add(CHANNELS.indexOf(n))); }); } })),
-    { text: 'Favorites only', heart: true, sep: true, count: favs.size, on: () => favOnly, pick() { favOnly = !favOnly; apply(() => { favOnly = !favOnly; }); } }
-  ];
+        apply(() => { stations.clear(); store.get('stations', []).forEach(n => { const i = CHANNELS.indexOf(n); if (i >= 0) stations.add(i); }); }); } })),
+    { text: 'Favorites only', heart: true, sep: true, count: favs.size, on: () => favOnly, pick() { favOnly = !favOnly; apply(() => { favOnly = !favOnly; }); } },
+    { text: 'Add a channel…', plus: true, sep: true, on: () => false, pick() { close(); openAdd(); } }
+    ];
+  };
   let list = [];
   function paint() {
     if (!menu) return;
     [...menu.children].forEach((row, i) => { row.classList.toggle('sel', list[i].on()); row.classList.toggle('hi', i === hi); });
     menu.querySelector('.fc').textContent = favs.size.toLocaleString();
+    menu.querySelectorAll('.rm.sure').forEach(b => { if (!b.matches(':hover')) { b.classList.remove('sure'); b.textContent = '×'; } });
   }
   function close(refocus) {
     if (!menu) return;
@@ -924,10 +995,17 @@ const stationDD = (() => {
     menu = document.createElement('div'); menu.className = 'menu';
     list.forEach((it, i) => {
       const row = document.createElement('div'); row.className = 'opt' + (it.sep ? ' sep' : '');
-      row.innerHTML = (it.color ? '<span class="dot"></span>' : it.heart ? '<svg class="i hrt"><use href="#i-heart"/></svg>' : '<span class="dot none"></span>') +
-        '<span class="ot"><span class="ol"></span></span><span class="oc' + (it.heart ? ' fc' : '') + '"></span><svg class="i ck"><use href="#i-check"/></svg>';
+      row.innerHTML = (it.color ? '<span class="dot"></span>' : it.heart ? '<svg class="i hrt"><use href="#i-heart"/></svg>' : it.plus ? '<span class="pl">+</span>' : '<span class="dot none"></span>') +
+        '<span class="ot"><span class="ol"></span></span>' + (it.remove ? '<button class="rm" title="Remove this channel">×</button>' : '') +
+        '<span class="oc' + (it.heart ? ' fc' : '') + '"></span><svg class="i ck"><use href="#i-check"/></svg>';
       if (it.color) { const d = row.querySelector('.dot'); d.style.background = it.color; d.style.boxShadow = `0 0 8px ${it.color}`; }
-      row.querySelector('.ol').textContent = it.text; row.querySelector('.oc').textContent = it.count.toLocaleString();
+      row.querySelector('.ol').textContent = it.text; row.querySelector('.oc').textContent = it.count == null ? '' : it.count.toLocaleString();
+      if (it.remove) row.querySelector('.rm').onclick = e => {      // two clicks: × then "Remove?"
+        e.stopPropagation();
+        const b = e.currentTarget;
+        if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Remove?'; return; }
+        close(); it.remove();
+      };
       row.onmouseenter = () => { hi = i; paint(); };
       row.onclick = e => { e.stopPropagation(); it.pick(); };    // stays open: tick several
       menu.appendChild(row);
@@ -954,6 +1032,178 @@ const stationDD = (() => {
   sync();
   return { sync };
 })();
+
+// ---- your own channels: add by link, stored in this browser ----------------
+// A static page can't read a channel's uploads by itself, so this uses the YouTube Data API
+// with a key the listener creates once (kept in localStorage, sent only to googleapis.com).
+async function yt(path, params) {
+  let r;
+  try { r = await fetch(`https://www.googleapis.com/youtube/v3/${path}?` + new URLSearchParams({ ...params, key: store.get('ytKey', '') })); }
+  catch { throw new Error('Couldn\'t reach YouTube. Check your connection.'); }
+  const j = await r.json().catch(() => ({}));
+  if (r.ok) return j;
+  const reason = j.error?.errors?.[0]?.reason || '', detail = j.error?.details?.[0]?.reason || '', msg = (j.error?.message || '').replace(/<[^>]+>/g, '');
+  const e = new Error(
+    /quota|dailyLimit/i.test(reason) ? 'Today\'s YouTube API quota is used up. Try again tomorrow.' :
+    detail === 'API_KEY_INVALID' || /API key not valid/i.test(msg) ? 'That API key isn\'t valid. Check that you copied all of it.' :
+    detail === 'API_KEY_HTTP_REFERRER_BLOCKED' ? `This API key is restricted to another website. Allow ${location.host} in the key's settings.` :
+    detail === 'SERVICE_DISABLED' || reason === 'accessNotConfigured' ? 'YouTube Data API v3 isn\'t enabled for this key yet. Enable it in Google Cloud, wait a minute and try again.' :
+    msg || `YouTube error ${r.status}`);
+  e.status = r.status;
+  throw e;
+}
+function parseLink(s) {
+  try { s = decodeURIComponent(s.trim()); } catch { s = s.trim(); }
+  let m;
+  if ((m = s.match(/[?&]list=((?:PL|UU|OL|FL)[\w-]+)/))) return { list: m[1] };
+  if ((m = s.match(/(?:^|\/)(UC[\w-]{22})(?:$|[/?#])/))) return { id: m[1] };
+  if ((m = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/live\/|\/embed\/)([\w-]{11})/))) return { video: m[1] };
+  if ((m = s.match(/@([^\s/?#]+)/))) return { handle: m[1] };
+  if ((m = s.match(/youtube\.com\/user\/([^\s/?#]+)/))) return { user: m[1] };
+  if ((m = s.match(/youtube\.com\/(?:c\/)?([^\s/?#]+)\/?(?:videos|featured|streams)?\/?$/))) return { handle: m[1] };   // old custom URL: usually the handle too
+  if (/^[\w.-]{3,}$/.test(s)) return { handle: s };
+  return null;
+}
+const isoSecs = s => { const m = /P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(s || '') || []; return (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0); };
+// Every video in a playlist as [id, title, seconds]. `known` ids are skipped; with `stopAtKnown`
+// (newest-first upload lists) paging stops at the first page that reaches one.
+async function fetchTracks(pl, known, onProgress, stopAtKnown) {
+  const found = [];
+  let token = '';
+  do {
+    const j = await yt('playlistItems', { part: 'snippet', maxResults: 50, playlistId: pl, ...(token && { pageToken: token }) });
+    let hit = false;
+    for (const it of j.items || []) {
+      const id = it.snippet?.resourceId?.videoId, title = it.snippet?.title;
+      if (!id || !title || title === 'Private video' || title === 'Deleted video') continue;
+      if (known?.has(id)) { hit = true; continue; }
+      found.push([id, title]);
+    }
+    onProgress?.(found.length, j.pageInfo?.totalResults || 0);
+    token = hit && stopAtKnown ? '' : j.nextPageToken || '';
+  } while (token);
+  const rows = [];                                              // lengths; drop live streams and videos that can't be embedded
+  for (let i = 0; i < found.length; i += 50) {
+    const chunk = found.slice(i, i + 50);
+    const j = await yt('videos', { part: 'contentDetails,status', id: chunk.map(r => r[0]).join(','), maxResults: 50 });
+    const info = new Map((j.items || []).map(v => [v.id, v]));
+    for (const [id, title] of chunk) {
+      const v = info.get(id), d = isoSecs(v?.contentDetails?.duration);
+      if (v && d && v.status?.embeddable !== false) rows.push([id, title, d]);
+    }
+  }
+  return rows;
+}
+const saveStations = () => store.set('stations', [...stations].map(c => CHANNELS[c]));
+async function addChannel(link, onProgress) {
+  const t = parseLink(link);
+  if (!t) throw new Error('That doesn\'t look like a YouTube link.');
+  let name, pl, uploads;
+  if (t.list) {
+    const p = (await yt('playlists', { part: 'snippet', id: t.list })).items?.[0];
+    if (!p) throw new Error('Couldn\'t find that playlist. Is it public?');
+    name = p.snippet.title; pl = t.list;
+  } else {
+    if (t.video) {
+      const v = (await yt('videos', { part: 'snippet', id: t.video })).items?.[0];
+      if (!v) throw new Error('Couldn\'t find that video.');
+      t.id = v.snippet.channelId;
+    }
+    const ch = (await yt('channels', { part: 'snippet,contentDetails', ...(t.id ? { id: t.id } : t.user ? { forUsername: t.user } : { forHandle: '@' + t.handle }) })).items?.[0];
+    if (!ch) throw new Error('Couldn\'t find that channel. Open it on YouTube and copy the link from the address bar.');
+    name = ch.snippet.title; uploads = ch.contentDetails?.relatedPlaylists?.uploads;
+    pl = 'UULF' + ch.id.slice(2);                               // the channel's Videos tab: no Shorts, no live streams
+  }
+  const dupe = () => new Error(`${name} is already in ZoomBoom.`);
+  if (CHANNELS.some(n => n.toLowerCase() === name.toLowerCase()) || custom.some(m => m.key === pl || m.key === uploads)) throw dupe();
+  let rows = [];
+  try { rows = await fetchTracks(pl, null, onProgress); } catch (e) { if (!uploads || e.status !== 404) throw e; }
+  if (!rows.length && uploads) { pl = uploads; rows = await fetchTracks(pl, null, onProgress); }
+  if (!rows.length) throw new Error(`${name} has no playable videos.`);
+  if (!rows.some(r => !byId.has(r[0]))) throw dupe();
+  const m = { key: pl, name, at: Date.now() };
+  try { localStorage.setItem(chanKey(pl), JSON.stringify({ name, at: m.at, rows })); }
+  catch { throw new Error('This browser\'s storage for ZoomBoom is full. Remove a channel you added, then try again.'); }
+  const c = CHANNELS.length;
+  CHANNELS.push(name); custom.push(m); store.set('chans', custom.map(x => x.key));
+  let n = 0;
+  for (const [id, title, d] of rows) n += addTrack(id, title, c, d);
+  if (stations.size) { stations.add(c); saveStations(); }      // a station is on: put the new channel in it
+  buildOrder(cur()?.id); updateCount(); stationDD.sync();
+  return { name, n };
+}
+function removeChannel(c) {
+  const m = custom[c - BAKED];
+  if (!m) return;
+  const keep = cur()?.id;
+  custom.splice(c - BAKED, 1); CHANNELS.splice(c, 1);
+  try { localStorage.removeItem(chanKey(m.key)); } catch {}
+  store.set('chans', custom.map(x => x.key));
+  const rest = all.filter(v => v.ci !== c);
+  all.length = 0; byId.clear();
+  for (const v of rest) { if (v.ci > c) v.ci--; all.push(v); byId.add(v.id); }
+  const old = [...stations]; stations.clear();
+  for (const s of old) if (s !== c) stations.add(s > c ? s - 1 : s);
+  if (!pool().length) { stations.clear(); favOnly = false; store.set('favOnly', false); }
+  saveStations();
+  if (!buildOrder(keep)) playAt(0);                             // the playing track went with it: move on
+  updateCount(); stationDD.sync();
+  toast(`Removed ${m.name}`);
+}
+// New uploads: look again at most every 6 hours per channel. They join the rotation at the next reshuffle.
+async function refreshChannels() {
+  if (!store.get('ytKey', '')) return;
+  for (const m of [...custom]) {
+    if (Date.now() - m.at < 6 * 3600e3) continue;
+    try {
+      const saved = readChan(m.key);
+      if (!saved) continue;
+      const fresh = await fetchTracks(m.key, new Set(saved.rows.map(r => r[0])), null, m.key.startsWith('UU'));
+      const c = custom.indexOf(m);
+      if (c < 0) continue;                                      // removed while we were fetching
+      m.at = Date.now();
+      localStorage.setItem(chanKey(m.key), JSON.stringify({ name: m.name, at: m.at, rows: fresh.concat(saved.rows) }));
+      let n = 0;
+      for (const [id, title, d] of fresh) n += addTrack(id, title, BAKED + c, d);
+      if (n) { updateCount(); toast(`${n} new track${n > 1 ? 's' : ''} from ${m.name}`, 4000); }
+    } catch { return; }                                         // offline, quota, bad key: try again next visit
+  }
+}
+setTimeout(refreshChannels, 8000);
+
+const addDlg = $('#addDlg');
+function openAdd() {
+  const hasKey = !!store.get('ytKey', '');
+  $('#keyBox').hidden = hasKey; $('#keyChange').hidden = !hasKey;
+  $('#addMsg').textContent = ''; $('#addMsg').className = 'dmsg';
+  $('#addHost').textContent = location.host;
+  addDlg.showModal();
+  $('#addUrl').focus();
+}
+$('#keyChange').onclick = () => { $('#keyBox').hidden = false; $('#keyChange').hidden = true; $('#addKey').value = ''; $('#addKey').focus(); };
+$('#addCancel').onclick = () => addDlg.close();
+addDlg.addEventListener('click', e => { if (e.target === addDlg) addDlg.close(); });   // click outside
+$('#addForm').onsubmit = async e => {
+  e.preventDefault();
+  const msg = $('#addMsg'), go = $('#addGo'), say = (t, bad) => { msg.textContent = t; msg.className = 'dmsg' + (bad ? ' bad' : ''); };
+  const link = $('#addUrl').value.trim(), key = $('#addKey').value.trim();
+  if (!link) return say('Paste a YouTube channel link first.', true);
+  if (!$('#keyBox').hidden) {
+    if (!key) return say('Paste your YouTube API key (steps below).', true);
+    store.set('ytKey', key);
+  }
+  go.disabled = true; say('Looking up the channel…');
+  try {
+    const { name, n } = await addChannel(link, (got, total) => say(`Fetching tracks… ${got.toLocaleString()}${total > got ? ' of ' + total.toLocaleString() : ''}`));
+    $('#addUrl').value = ''; $('#addKey').value = '';
+    addDlg.close();
+    toast(`Added ${name}: ${n.toLocaleString()} tracks`, 4000);
+  } catch (err) {
+    say(err.message || String(err), true);
+    if (/API key/.test(err.message)) { store.set('ytKey', ''); $('#keyBox').hidden = false; $('#keyChange').hidden = true; }   // ask for the key again
+  }
+  go.disabled = false;
+};
 
 syncButtons();
 buildOrder(store.get('last'));

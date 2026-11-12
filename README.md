@@ -18,6 +18,7 @@ Keys: Space play/pause · N next · P prev · H hide the UI · F fullscreen · V
 - **Favorites:** heart a track (or press L), then tick *Favorites only* to play just those. Saved in your browser.
 - **Open on YouTube:** the arrow button next to the heart opens the current track at the current moment.
 - **Mini player:** a small always-on-top window with the controls (Chrome/Edge only).
+- **Add a channel:** *Add a channel…* at the bottom of the station menu takes a YouTube channel link (or a video or playlist from it) and pulls in every upload; new uploads are picked up automatically. It needs a free YouTube API key the first time (steps are in the dialog). Added channels are saved in your browser only; remove one with the × next to it in the menu.
 
 ## Visuals
 

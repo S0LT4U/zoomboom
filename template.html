@@ -385,7 +385,7 @@ const [CHANNELS, UPDATED, ROWS] = DATA;
 const CCOL = ['#ff3d7f', '#7b5cff', '#ff7a1a', '#3d8bff', '#c04cff', '#ffb020', '#ff2d55'];
 const ccol = ci => CCOL[ci % CCOL.length];
 const thumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
-const all = ROWS.map(([id, title, c, duration]) => ({ id, title, ci: c, channel: CHANNELS[c], duration }));
+const all = ROWS.map(([id, title, c, duration]) => ({ id, title, lc: title.toLowerCase(), ci: c, channel: CHANNELS[c], duration }));
 let order = [], pos = 0, player, ready = false, errStreak = 0;
 let shuffle = store.get('shuffle', true), even = store.get('even', true), loop = store.get('loop', true);
 
@@ -395,12 +395,14 @@ function shuffleArr(a) {
 }
 // Even mix: every pick comes from the next channel in rotation, each channel's own queue shuffled.
 // A small channel's queue is reshuffled and reused when it runs dry, so no channel can dominate.
+// The rotation runs until the biggest channel has played everything, so every track is in it
+// (small channels' tracks appear more than once).
 function evenOrder() {
   const queues = CHANNELS.map((_, c) => shuffleArr(all.map((v, i) => v.ci === c ? i : -1).filter(i => i >= 0)));
   const live = queues.filter(q => q.length);
-  const out = [];
+  const out = [], total = live.length * Math.max(...live.map(q => q.length));
   let turn = Math.random() * live.length | 0;
-  while (out.length < all.length) {
+  while (out.length < total) {
     const q = live[turn++ % live.length];
     if (!q.n) q.n = 0;
     if (q.n >= q.length) { shuffleArr(q); q.n = 0; }
@@ -416,6 +418,14 @@ function buildOrder(keepId) {
   renderList();
 }
 const cur = () => all[order[pos]];
+// Next / previous. While a search or channel filter is on, playback stays inside the filtered list.
+function step(d) {
+  if (!filterOn || !view.length) return playAt(pos + d);
+  let i = -1;
+  if (d > 0) { i = view.findIndex(p => p > pos); if (i < 0) { if (!loop) return; i = 0; } }
+  else { for (let k = view.length - 1; k >= 0; k--) if (view[k] < pos) { i = k; break; } if (i < 0) i = view.length - 1; }
+  playAt(view[i]);
+}
 
 function playAt(p) {
   if (p >= order.length) { if (!loop) return; if (shuffle) buildOrder(); p = 0; }
@@ -455,7 +465,7 @@ async function surfNext() {
   if (fading) return; fading = true;
   await fadeTo(0, 1800);
   fadeInPending = true;
-  playAt(pos + 1);
+  step(1);
   fading = false;
 }
 setInterval(() => {
@@ -489,7 +499,7 @@ $('#bar').onclick = e => {
 // With 5,000+ tracks, rendering every row put ~68,000 elements on the page and made
 // every style change crawl. Now ~25 rows exist at a time and are recycled on scroll.
 const ROW = 48, OVERSCAN = 6;
-let view = [];                                                 // positions in `order` that pass the filter
+let view = [], filterOn = false;                               // positions in `order` that pass the filter
 const shown = new Map();                                       // position -> <li> currently on screen
 const scroller = $('#list'), rowsEl = $('#rows');
 function makeRow(p) {
@@ -513,17 +523,19 @@ function drawRows() {
     let li = shown.get(p);
     if (!li) { li = makeRow(p); shown.set(p, li); rowsEl.appendChild(li); }
     li.style.transform = `translateY(${i * ROW}px)`;
-    li.classList.toggle('cur', p === pos);
+    li.classList.toggle('cur', filterOn ? order[p] === order[pos] : p === pos);
   }
   for (const [p, li] of shown) if (!want.has(p)) { li.remove(); shown.delete(p); }
 }
 function renderList() {
   const q = $('#q').value.toLowerCase(), ch = $('#chan').value;
-  view = [];
+  view = []; filterOn = !!(q || ch);
+  const seen = filterOn ? new Set() : null;                    // a filtered list shows each track once
   for (let p = 0; p < order.length; p++) {
     const v = all[order[p]];
     if (ch && v.channel !== ch) continue;
-    if (q && !v.title.toLowerCase().includes(q)) continue;
+    if (q && !v.lc.includes(q)) continue;
+    if (seen) { if (seen.has(order[p])) continue; seen.add(order[p]); }
     view.push(p);
   }
   for (const li of shown.values()) li.remove();
@@ -533,8 +545,9 @@ function renderList() {
   markCurrent();
 }
 function markCurrent() {
-  const i = view.indexOf(pos);
-  if (i >= 0) {                                                // keep the playing row in view
+  let i = view.indexOf(pos);
+  if (i < 0 && filterOn) i = view.findIndex(p => order[p] === order[pos]);
+  if (i >= 0) {                                               // keep the playing row in view
     const y = i * ROW, top = scroller.scrollTop, h = scroller.clientHeight;
     if (y < top) scroller.scrollTop = y;
     else if (y + ROW > top + h) scroller.scrollTop = y + ROW - h;
@@ -572,7 +585,7 @@ window.onYouTubeIframeAPIReady = () => {
       onReady: () => { ready = true; document.body.classList.add('ready'); player.setVolume(+$('#vol').value); playAt(pos); },
       onStateChange: e => {
         document.body.classList.toggle('playing', e.data === YT.PlayerState.PLAYING);
-        if (e.data === YT.PlayerState.ENDED) playAt(pos + 1);
+        if (e.data === YT.PlayerState.ENDED) step(1);
         if (e.data === YT.PlayerState.PLAYING) {
           errStreak = 0;
           if (fadeInPending) { fadeInPending = false; fadeTo(+$('#vol').value, 1500); }
@@ -582,7 +595,7 @@ window.onYouTubeIframeAPIReady = () => {
       onError: e => {
         if (e.data === 153) return warn('YouTube won\'t play videos on a page opened straight from a file. ' +
           'Open ZoomBoom from its web link instead (for example a GitHub Pages or Netlify address).');
-        if (++errStreak < 8) return setTimeout(() => playAt(pos + 1), 400);
+        if (++errStreak < 8) return setTimeout(() => step(1), 400);
         warn(`YouTube refused to play several videos in a row (error ${e.data}).` +
           (location.protocol === 'file:' ? ' YouTube may block players opened straight from a file. Try another browser, or open this page from a web link instead.' : ''));
       }
@@ -612,8 +625,8 @@ $('#surfMin').onchange = e => {
   clipStart = 0; clipEnd = Infinity; applySurf(surfOn);
 };
 applySurf(false);
-$('#next').onclick = () => playAt(pos + 1);
-$('#prev').onclick = () => playAt(pos - 1);
+$('#next').onclick = () => step(1);
+$('#prev').onclick = () => step(-1);
 $('#play').onclick = () => { if (!ready) return; player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo(); };
 $('#shuffle').onclick = () => { shuffle = !shuffle; store.set('shuffle', shuffle); buildOrder(cur()?.id); syncButtons(); };
 $('#even').onclick = () => { even = !even; store.set('even', even); buildOrder(cur()?.id); syncButtons(); };
@@ -621,7 +634,8 @@ $('#loop').onclick = () => { loop = !loop; store.set('loop', loop); syncButtons(
 $('#q').oninput = renderList;
 $('#chan').onchange = renderList;
 document.addEventListener('keydown', e => {
-  if (e.target.matches('input, select')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;              // leave browser shortcuts (Ctrl+F, Ctrl+N...) alone
+  if (e.target.matches?.('input, select')) return;
   if (e.code === 'Space') { e.preventDefault(); $('#play').click(); }
   if (e.key === 'n') $('#next').click();
   if (e.key === 'p') $('#prev').click();

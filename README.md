@@ -10,7 +10,14 @@ One endless, shuffled YouTube radio built from five music channels:
 **▶ Listen: https://s0lt4u.github.io/zoomboom/**
 
 No ads if you're signed in to YouTube Premium in the same browser.
-Keys: Space play/pause · N next · P prev · H hide the UI · F fullscreen · V next visual.
+Keys: Space play/pause · N next · P prev · H hide the UI · F fullscreen · V next visual · L favorite.
+
+## Stations, favorites, mini player
+
+- **Stations:** the menu above the playlist picks which channels play. Tick any mix of them.
+- **Favorites:** heart a track (or press L), then tick *Favorites only* to play just those. Saved in your browser.
+- **Open on YouTube:** the arrow button next to the heart opens the current track at the current moment.
+- **Mini player:** a small always-on-top window with the controls (Chrome/Edge only).
 
 ## Visuals
 

@@ -100,7 +100,17 @@
   @keyframes shimmer { to { background-position: -200% 0; } }
 
   .deck { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 10px; flex: none; }
-  .np { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .np-row { display: flex; align-items: center; gap: 8px; }
+  .np { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+  a.ib { text-decoration: none; }
+  .heart.on, li.fav .hv { color: var(--a2); } .heart.on svg, li.fav .hv svg { fill: currentColor; }
+  .hv { width: 28px; height: 28px; border: 0; background: none; color: var(--muted); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; opacity: 0; }
+  .hv svg { width: 15px; height: 15px; } .hv:hover { background: rgba(255, 255, 255, .08); }
+  li:hover .hv { opacity: .7; } li.fav .hv { opacity: 1; }
+  .field.dd.active { border-color: rgba(255, 61, 127, .5); }
+  .opt.sep { margin-top: 6px; position: relative; } .opt.sep::before { content: ''; position: absolute; left: 6px; right: 6px; top: -4px; border-top: 1px solid var(--line2); }
+  .opt .dot.none { background: none; box-shadow: none; border: 1px solid var(--line2); }
+  .opt .hrt { width: 12px; height: 12px; color: var(--a2); fill: currentColor; margin: 0 -2px; }
   .np-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
   .cchip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--c, var(--a2)); }
   .cchip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--a2)); box-shadow: 0 0 10px var(--c, var(--a2)); }
@@ -155,7 +165,7 @@
   .field.dd { flex: 0 0 170px; color: var(--text); }
   .list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; contain: strict; }
   .list ol { position: relative; list-style: none; margin: 0; padding: 0; }
-  li { position: absolute; left: 0; right: 0; top: 0; height: 46px; display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  li { position: absolute; left: 0; right: 0; top: 0; height: 46px; display: grid; grid-template-columns: 60px minmax(0, 1fr) auto 28px; gap: 8px; align-items: center;
     padding: 6px 8px; border-radius: 10px; cursor: pointer; transition: background .12s; contain: layout paint; }
   li:hover { background: rgba(255, 255, 255, .05); }
   li .th { position: relative; width: 60px; height: 34px; border-radius: 6px; overflow: hidden; background: #1a1526; }
@@ -226,8 +236,11 @@
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.87l13-7.5a1 1 0 0 0 0-1.74l-13-7.5A1 1 0 0 0 7 4.5z"/></symbol>
+<svg id="sprite" width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></symbol>
+  <symbol id="i-pip" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1"/></symbol>
+  <symbol id="i-play"viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.87l13-7.5a1 1 0 0 0 0-1.74l-13-7.5A1 1 0 0 0 7 4.5z"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.2"/><rect x="14" y="4" width="5" height="16" rx="1.2"/></symbol>
   <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14M18 5.5v13a1 1 0 0 1-1.55.83l-9-6.5a1 1 0 0 1 0-1.66l9-6.5A1 1 0 0 1 18 5.5z"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14M6 5.5v13a1 1 0 0 0 1.55.83l9-6.5a1 1 0 0 0 0-1.66l-9-6.5A1 1 0 0 0 6 5.5z"/></symbol>
@@ -308,9 +321,13 @@
   <div class="warn" id="warn"></div>
   <div class="frame"><div id="player"></div></div>
   <section class="deck">
-    <div class="np">
-      <div class="np-meta"><span class="cchip" id="nowChan"></span><span class="tag" id="nowFrom" hidden></span></div>
-      <div class="np-title" id="nowTitle">—</div>
+    <div class="np-row">
+      <div class="np">
+        <div class="np-meta"><span class="cchip" id="nowChan"></span><span class="tag" id="nowFrom" hidden></span></div>
+        <div class="np-title" id="nowTitle">—</div>
+      </div>
+      <button class="ib heart" id="fav" title="Favorite (L)"><svg class="i"><use href="#i-heart"/></svg></button>
+      <a class="ib" id="ytLink" href="https://www.youtube.com/" target="_blank" rel="noopener" title="Open this track on YouTube (pauses here)"><svg class="i"><use href="#i-ext"/></svg></a>
     </div>
     <div class="prog">
       <span id="tCur">0:00</span>
@@ -347,12 +364,14 @@
         </select></div>
       <button class="chip" id="scene" title="Switch to the next visual (V)"><svg class="i"><use href="#i-spark"/></svg><span>Next visual</span></button>
       <button class="chip" id="zen" title="Hide the interface, just the visuals (H)"><svg class="i"><use href="#i-eye"/></svg><span>Hide UI</span></button>
+      <button class="chip" id="mini" hidden title="Floating mini player that stays on top of other windows"><svg class="i"><use href="#i-pip"/></svg><span>Mini player</span></button>
       <span class="scene-name" id="sceneName"></span>
       <span class="sp"></span>
       <details class="help">
         <summary class="ib" title="Tips and keys"><svg class="i"><use href="#i-help"/></svg></summary>
         <div class="pop">
-          <p><b>Keys</b> &nbsp;<kbd>Space</kbd> play/pause &nbsp;<kbd>N</kbd> next &nbsp;<kbd>P</kbd> previous &nbsp;<kbd>H</kbd> hide UI &nbsp;<kbd>F</kbd> fullscreen &nbsp;<kbd>V</kbd> next visual</p>
+          <p><b>Keys</b> &nbsp;<kbd>Space</kbd> play/pause &nbsp;<kbd>N</kbd> next &nbsp;<kbd>P</kbd> previous &nbsp;<kbd>H</kbd> hide UI &nbsp;<kbd>F</kbd> fullscreen &nbsp;<kbd>V</kbd> next visual &nbsp;<kbd>L</kbd> favorite</p>
+          <p><b>Stations:</b> the menu above the playlist picks which channels play. Tick several, or <i>Favorites only</i> for the tracks you've hearted. Favorites are saved in this browser.</p>
           <p><b>No ads</b> with YouTube Premium: just be signed in to YouTube in this browser.</p>
           <p><b>Surf</b> drops into long mixes at a random point and moves on after the set minutes, like flipping stations. Click the progress bar to seek.</p>
           <p><b>Reactive visuals:</b> choose <i>Listen to this tab</i> (Chrome/Edge) and share this tab with audio. Nothing leaves your computer. Other browsers can use the microphone.</p>
@@ -365,8 +384,8 @@
 <aside>
   <div class="search">
     <label class="field"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="Search tracks…"></label>
-    <div class="field dd" id="chanDD" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" title="Filter by channel">
-      <span class="dd-label"></span><select id="chan" hidden><option value="">All channels</option></select></div>
+    <div class="field dd" id="chanDD" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" title="Station: which channels play">
+      <span class="dd-label"></span></div>
   </div>
   <div class="list" id="list"><ol id="rows"></ol><div class="empty" id="empty" hidden>No tracks match.</div></div>
 </aside>
@@ -388,6 +407,21 @@ const thumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 const all = ROWS.map(([id, title, c, duration]) => ({ id, title, lc: title.toLowerCase(), ci: c, channel: CHANNELS[c], duration }));
 let order = [], pos = 0, player, ready = false, errStreak = 0;
 let shuffle = store.get('shuffle', true), even = store.get('even', true), loop = store.get('loop', true);
+// Station = which channels are in the rotation (empty set = all), optionally favorites only
+const stations = new Set(store.get('stations', []).map(n => CHANNELS.indexOf(n)).filter(i => i >= 0));
+const favs = new Set(store.get('favs', []));
+let favOnly = store.get('favOnly', false);
+function pool() {
+  const out = [];
+  for (let i = 0; i < all.length; i++) {
+    const v = all[i];
+    if (stations.size && !stations.has(v.ci)) continue;
+    if (favOnly && !favs.has(v.id)) continue;
+    out.push(i);
+  }
+  return out;
+}
+if (!pool().length) { stations.clear(); favOnly = false; }
 
 function shuffleArr(a) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; }
@@ -397,9 +431,11 @@ function shuffleArr(a) {
 // A small channel's queue is reshuffled and reused when it runs dry, so no channel can dominate.
 // The rotation runs until the biggest channel has played everything, so every track is in it
 // (small channels' tracks appear more than once).
-function evenOrder() {
-  const queues = CHANNELS.map((_, c) => shuffleArr(all.map((v, i) => v.ci === c ? i : -1).filter(i => i >= 0)));
-  const live = queues.filter(q => q.length);
+function evenOrder(idx) {
+  const by = new Map();
+  for (const i of idx) { const c = all[i].ci; if (!by.has(c)) by.set(c, []); by.get(c).push(i); }
+  const live = [...by.values()].map(shuffleArr);
+  if (live.length < 2) return live[0] || [];
   const out = [], total = live.length * Math.max(...live.map(q => q.length));
   let turn = Math.random() * live.length | 0;
   while (out.length < total) {
@@ -411,11 +447,13 @@ function evenOrder() {
   return out;
 }
 function buildOrder(keepId) {
-  order = !shuffle ? [...all.keys()] : even ? evenOrder() : shuffleArr([...all.keys()]);
-  const i = keepId ? all.findIndex(v => v.id === keepId) : -1;
-  if (i >= 0) { const at = order.indexOf(i); if (at >= 0) order.splice(at, 1); order.unshift(i); }
+  const idx = pool();
+  order = !shuffle ? idx : even ? evenOrder(idx) : shuffleArr(idx);
+  const i = keepId ? all.findIndex(v => v.id === keepId) : -1, at = i >= 0 ? order.indexOf(i) : -1;
+  if (at >= 0) { order.splice(at, 1); order.unshift(i); }      // keep the playing track first, if it's in this station
   pos = 0;
   renderList();
+  return at >= 0;
 }
 const cur = () => all[order[pos]];
 // Next / previous. While a search or channel filter is on, playback stays inside the filtered list.
@@ -449,6 +487,7 @@ function playAt(p) {
   $('#nowFrom').hidden = !start; $('#nowFrom').textContent = start ? 'from ' + fmt(start) : '';
   $('#zenChan').textContent = v.channel + (start ? ' · from ' + fmt(start) : '');
   if (ready) player.loadVideoById({ videoId: v.id, startSeconds: start });
+  syncFav(); updateMini();
   markCurrent();
   if (document.body.classList.contains('zen')) showZenCard();
 }
@@ -481,6 +520,7 @@ function tick() {
   if (!ready) return;
   const d = player.getDuration() || cur()?.duration || 0, t = player.getCurrentTime() || 0, f = d ? Math.min(1, t / d) : 0;
   $('#fill').style.width = $('#zProg').style.width = (f * 100).toFixed(2) + '%';
+  if (pip) pip.document.querySelector('.p i').style.width = (f * 100).toFixed(2) + '%';
   $('#tCur').textContent = fmt(t); $('#tDur').textContent = fmt(d);
   document.body.classList.toggle('surfing', !!surf && d > 0 && clipEnd < Infinity);
   if (surf && d) { $('#clipSeg').style.left = (clipStart / d * 100) + '%'; $('#clipSeg').style.width = (Math.min(1, (clipEnd - clipStart) / d) * 100) + '%'; }
@@ -506,7 +546,8 @@ function makeRow(p) {
   const v = all[order[p]], li = document.createElement('li');
   li.style.setProperty('--c', ccol(v.ci));
   li.innerHTML = '<div class="th"><img decoding="async" alt=""><div class="eqv"><i></i><i></i><i></i></div></div>' +
-    '<div><div class="tt"></div><div class="cc"><b></b></div></div><span class="d"></span>';
+    '<div><div class="tt"></div><div class="cc"><b></b></div></div><span class="d"></span>' +
+    '<button class="hv" title="Favorite"><svg class="i"><use href="#i-heart"/></svg></button>';
   li.querySelector('img').src = thumb(v.id);
   li.querySelector('.tt').textContent = v.title;
   li.querySelector('.cc b').textContent = v.channel;
@@ -524,16 +565,16 @@ function drawRows() {
     if (!li) { li = makeRow(p); shown.set(p, li); rowsEl.appendChild(li); }
     li.style.transform = `translateY(${i * ROW}px)`;
     li.classList.toggle('cur', filterOn ? order[p] === order[pos] : p === pos);
+    li.classList.toggle('fav', favs.has(all[order[p]].id));
   }
   for (const [p, li] of shown) if (!want.has(p)) { li.remove(); shown.delete(p); }
 }
 function renderList() {
-  const q = $('#q').value.toLowerCase(), ch = $('#chan').value;
-  view = []; filterOn = !!(q || ch);
+  const q = $('#q').value.toLowerCase();
+  view = []; filterOn = !!q;
   const seen = filterOn ? new Set() : null;                    // a filtered list shows each track once
   for (let p = 0; p < order.length; p++) {
     const v = all[order[p]];
-    if (ch && v.channel !== ch) continue;
     if (q && !v.lc.includes(q)) continue;
     if (seen) { if (seen.has(order[p])) continue; seen.add(order[p]); }
     view.push(p);
@@ -556,7 +597,75 @@ function markCurrent() {
 }
 let rowRaf = 0;
 scroller.addEventListener('scroll', () => { if (!rowRaf) rowRaf = requestAnimationFrame(() => { rowRaf = 0; drawRows(); }); }, { passive: true });
-rowsEl.addEventListener('click', e => { const li = e.target.closest('li'); if (li) playAt(+li.dataset.p); });
+rowsEl.addEventListener('click', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  if (e.target.closest('.hv')) return toggleFav(all[order[+li.dataset.p]].id);
+  playAt(+li.dataset.p);
+});
+
+// ---- favorites ------------------------------------------------------------
+function syncFav() { const v = cur(); if (v) $('#fav').classList.toggle('on', favs.has(v.id)); }
+function toggleFav(id = cur()?.id) {
+  if (!id) return;
+  favs.has(id) ? favs.delete(id) : favs.add(id);
+  store.set('favs', [...favs]);
+  syncFav(); drawRows(); updateMini();
+}
+
+// ---- floating mini player (Document Picture-in-Picture: Chrome / Edge) ----
+let pip = null;
+const MINI_CSS = `
+  * { box-sizing: border-box; } html, body { margin: 0; height: 100%; }
+  body { background: #0d0b14; color: #f3effc; font: 13px/1.35 Inter, "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  .top { display: flex; gap: 10px; align-items: center; padding: 10px 12px 8px; min-height: 0; flex: 1; }
+  img { width: 76px; height: 43px; border-radius: 6px; object-fit: cover; background: #1a1526; flex: none; }
+  .txt { min-width: 0; flex: 1; } .t { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .c { font-size: 11.5px; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p { height: 3px; background: rgba(255,255,255,.12); } .p i { display: block; height: 100%; width: 0; background: linear-gradient(100deg, #ffb020, #ff3d7f 50%, #7b5cff); }
+  .row { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px 10px; }
+  button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.13); background: rgba(255,255,255,.04); color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  button:hover { background: rgba(255,255,255,.1); }
+  button.main { width: 42px; height: 42px; border: 0; background: linear-gradient(100deg, #ffb020, #ff3d7f 50%, #7b5cff); }
+  button.on { color: #ff3d7f; border-color: rgba(255,61,127,.6); } button.on svg { fill: currentColor; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  svg.fill { fill: currentColor; stroke: none; } .sp { flex: 1; }
+  .pa { display: none; } body.playing .pl { display: none; } body.playing .pa { display: block; }`;
+function updateMini() {
+  if (!pip) return;
+  const d = pip.document, v = cur(); if (!v) return;
+  d.querySelector('.t').textContent = v.title;
+  const c = d.querySelector('.c'); c.textContent = v.channel; c.style.color = ccol(v.ci);
+  d.querySelector('img').src = thumb(v.id);
+  d.querySelector('#mFav').classList.toggle('on', favs.has(v.id));
+  d.body.classList.toggle('playing', document.body.classList.contains('playing'));
+  d.title = v.title;
+}
+async function toggleMini() {
+  if (pip) return pip.close();
+  try { pip = await documentPictureInPicture.requestWindow({ width: 360, height: 150 }); }
+  catch (err) { return toast('Couldn\'t open the mini player: ' + (err.message || err.name), 4000); }
+  const d = pip.document;
+  d.head.appendChild(Object.assign(d.createElement('style'), { textContent: MINI_CSS }));
+  d.body.innerHTML = '<div class="top"><img alt=""><div class="txt"><div class="t"></div><div class="c"></div></div></div><div class="p"><i></i></div>' +
+    '<div class="row"><button id="mFav" title="Favorite (L)"><svg><use href="#i-heart"/></svg></button><span class="sp"></span>' +
+    '<button id="mPrev" title="Previous (P)"><svg><use href="#i-prev"/></svg></button>' +
+    '<button id="mPlay" class="main" title="Play / pause (Space)"><svg class="fill pl"><use href="#i-play"/></svg><svg class="fill pa"><use href="#i-pause"/></svg></button>' +
+    '<button id="mNext" title="Next (N)"><svg><use href="#i-next"/></svg></button><span class="sp"></span>' +
+    '<button id="mSurf" title="Surf"><svg><use href="#i-wave"/></svg></button></div>';
+  d.body.prepend(d.importNode($('#sprite'), true));             // icons
+  const on = (id, fn) => d.querySelector(id).onclick = fn;
+  on('#mPrev', () => $('#prev').click()); on('#mNext', () => $('#next').click()); on('#mPlay', () => $('#play').click());
+  on('#mFav', () => toggleFav()); on('#mSurf', () => { $('#surfBtn').click(); d.querySelector('#mSurf').classList.toggle('on', surfOn); });
+  d.querySelector('#mSurf').classList.toggle('on', surfOn);
+  d.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code === 'Space') { e.preventDefault(); $('#play').click(); }
+    if (e.key === 'n') $('#next').click(); if (e.key === 'p') $('#prev').click(); if (e.key === 'l') toggleFav();
+  });
+  pip.addEventListener('pagehide', () => { pip = null; $('#mini').classList.remove('on'); });
+  $('#mini').classList.add('on');
+  updateMini();
+}
 addEventListener('resize', drawRows);
 
 function syncButtons() {
@@ -567,8 +676,7 @@ function syncButtons() {
 }
 function warn(html) { const w = $('#warn'); w.innerHTML = html; w.style.display = 'block'; }
 
-// Channel filter + header count
-CHANNELS.forEach(c => { const o = document.createElement('option'); o.value = o.textContent = c; $('#chan').appendChild(o); });
+// Header count
 $('#count').textContent = `${all.length.toLocaleString()} tracks · ${CHANNELS.length} channels · ${new Date(UPDATED * 1000).toLocaleDateString()}`;
 
 // YouTube IFrame API
@@ -585,6 +693,7 @@ window.onYouTubeIframeAPIReady = () => {
       onReady: () => { ready = true; document.body.classList.add('ready'); player.setVolume(+$('#vol').value); playAt(pos); },
       onStateChange: e => {
         document.body.classList.toggle('playing', e.data === YT.PlayerState.PLAYING);
+        updateMini();
         if (e.data === YT.PlayerState.ENDED) step(1);
         if (e.data === YT.PlayerState.PLAYING) {
           errStreak = 0;
@@ -632,7 +741,14 @@ $('#shuffle').onclick = () => { shuffle = !shuffle; store.set('shuffle', shuffle
 $('#even').onclick = () => { even = !even; store.set('even', even); buildOrder(cur()?.id); syncButtons(); };
 $('#loop').onclick = () => { loop = !loop; store.set('loop', loop); syncButtons(); };
 $('#q').oninput = renderList;
-$('#chan').onchange = renderList;
+$('#fav').onclick = () => toggleFav();
+$('#ytLink').onclick = e => {                                  // open the current track on YouTube at this moment, and pause here
+  const v = cur(); if (!v) return e.preventDefault();
+  const t = ready ? Math.floor(player.getCurrentTime() || 0) : 0;
+  e.currentTarget.href = `https://www.youtube.com/watch?v=${v.id}` + (t > 5 ? `&t=${t}s` : '');
+  if (ready) player.pauseVideo();
+};
+if ('documentPictureInPicture' in window) { $('#mini').hidden = false; $('#mini').onclick = toggleMini; }
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;              // leave browser shortcuts (Ctrl+F, Ctrl+N...) alone
   if (e.target.matches?.('input, select')) return;
@@ -643,6 +759,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.body.classList.contains('zen') && !document.fullscreenElement) toggleZen(false);
   if (e.key === 'f') toggleFull();
   if (e.key === 'v') Viz.next();
+  if (e.key === 'l') toggleFav();
 });
 document.addEventListener('click', e => { const h = $('details.help'); if (h.open && !h.contains(e.target)) h.open = false; });
 
@@ -764,10 +881,79 @@ addEventListener('resize', closeMenus);
 document.addEventListener('scroll', e => { if (!e.target.closest?.('.menu')) closeMenus(); }, true);
 
 const audioDD = dropdown($('#audioDD'));
-const chanCounts = {}; all.forEach(v => chanCounts[v.channel] = (chanCounts[v.channel] || 0) + 1);
-const chanDD = dropdown($('#chanDD'), o => o.value
-  ? { color: ccol(CHANNELS.indexOf(o.value)), count: chanCounts[o.value] }
-  : { count: all.length });
+
+// ---- station menu: tick any mix of channels, and/or favorites only ---------
+const chanCounts = CHANNELS.map((_, c) => all.filter(v => v.ci === c).length);
+const stationDD = (() => {
+  const wrap = $('#chanDD'), label = wrap.querySelector('.dd-label');
+  let menu = null, hi = 0;
+  function sync() {
+    const names = [...stations].map(c => CHANNELS[c]);
+    const base = !names.length ? 'All channels' : names.length === 1 ? names[0] : names.length + ' channels';
+    label.textContent = favOnly ? (names.length ? '♥ ' + base : '♥ Favorites') : base;
+    wrap.classList.toggle('active', favOnly || names.length > 0);
+  }
+  function apply(undo) {
+    if (!pool().length) { undo(); return toast(favOnly ? 'No favorites there yet. Tap the heart on a track first.' : 'Nothing to play in that station'); }
+    store.set('stations', [...stations].map(c => CHANNELS[c])); store.set('favOnly', favOnly);
+    const kept = buildOrder(cur()?.id);
+    if (!kept) playAt(0);                                       // the playing track isn't in the new station: switch now
+    sync(); paint();
+  }
+  const items = () => [
+    { text: 'All channels', count: all.length, on: () => !stations.size, pick() { const old = [...stations]; stations.clear(); apply(() => old.forEach(c => stations.add(c))); } },
+    ...CHANNELS.map((name, c) => ({ text: name, color: ccol(c), count: chanCounts[c], on: () => stations.has(c),
+      pick() { const had = stations.has(c); had ? stations.delete(c) : stations.add(c); if (stations.size === CHANNELS.length) stations.clear();
+        apply(() => { stations.clear(); store.get('stations', []).forEach(n => stations.add(CHANNELS.indexOf(n))); }); } })),
+    { text: 'Favorites only', heart: true, sep: true, count: favs.size, on: () => favOnly, pick() { favOnly = !favOnly; apply(() => { favOnly = !favOnly; }); } }
+  ];
+  let list = [];
+  function paint() {
+    if (!menu) return;
+    [...menu.children].forEach((row, i) => { row.classList.toggle('sel', list[i].on()); row.classList.toggle('hi', i === hi); });
+    menu.querySelector('.fc').textContent = favs.size.toLocaleString();
+  }
+  function close(refocus) {
+    if (!menu) return;
+    menu.remove(); menu = null; wrap.classList.remove('open'); wrap.setAttribute('aria-expanded', 'false');
+    if (refocus) wrap.focus();
+  }
+  function open() {
+    closeMenus();
+    list = items();
+    menu = document.createElement('div'); menu.className = 'menu';
+    list.forEach((it, i) => {
+      const row = document.createElement('div'); row.className = 'opt' + (it.sep ? ' sep' : '');
+      row.innerHTML = (it.color ? '<span class="dot"></span>' : it.heart ? '<svg class="i hrt"><use href="#i-heart"/></svg>' : '<span class="dot none"></span>') +
+        '<span class="ot"><span class="ol"></span></span><span class="oc' + (it.heart ? ' fc' : '') + '"></span><svg class="i ck"><use href="#i-check"/></svg>';
+      if (it.color) { const d = row.querySelector('.dot'); d.style.background = it.color; d.style.boxShadow = `0 0 8px ${it.color}`; }
+      row.querySelector('.ol').textContent = it.text; row.querySelector('.oc').textContent = it.count.toLocaleString();
+      row.onmouseenter = () => { hi = i; paint(); };
+      row.onclick = e => { e.stopPropagation(); it.pick(); };    // stays open: tick several
+      menu.appendChild(row);
+    });
+    document.body.appendChild(menu);
+    const r = wrap.getBoundingClientRect();
+    menu.style.minWidth = Math.max(r.width, 230) + 'px';
+    menu.style.top = r.bottom + 6 + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + 'px';
+    wrap.classList.add('open'); wrap.setAttribute('aria-expanded', 'true');
+    hi = 0; paint();
+  }
+  wrap.addEventListener('click', e => { e.stopPropagation(); menu ? close() : open(); });
+  wrap.addEventListener('keydown', e => {
+    if (!menu) { if (['Enter', ' ', 'ArrowDown'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); open(); } return; }
+    e.stopPropagation();
+    if (e.key === 'ArrowDown') { e.preventDefault(); hi = (hi + 1) % list.length; paint(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); hi = (hi - 1 + list.length) % list.length; paint(); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); list[hi].pick(); }
+    else if (e.key === 'Escape') close(true);
+    else if (e.key === 'Tab') close();
+  });
+  dropdowns.push({ close });
+  sync();
+  return { sync };
+})();
 
 syncButtons();
 buildOrder(store.get('last'));
